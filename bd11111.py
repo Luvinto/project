@@ -1,12 +1,15 @@
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from pydantic import BaseModel, field_validator
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship, Session
+from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy.types import Enum as SQLEnum
 from typing import Literal
 from pydantic import EmailStr
 
 
 Base=declarative_base()
+engine=create_engine('postgresql://postgres:Dfhzu123@localhost:5432/my_bd')
+Sessions=sessionmaker(bind=engine)
+sessions=Sessions()
 
 class Users(Base):
     __tablename__='Users'
@@ -45,8 +48,7 @@ class Users_validation(BaseModel):
             raise ValueError('Пароль должен быть больше 5 символов и содержать цифры')
         return password
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict()
 
 
 class Progress(Base):
@@ -61,8 +63,7 @@ class Progress_validation(BaseModel):
     nomer_lesson:int
     users_id:int
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict()
 
 class Teoriay(Base):
     __tablename__='Teoriay'
@@ -74,9 +75,7 @@ class Teoriay_validation(BaseModel):
     id:int
     text:str
 
-    class Config:
-        from_attributes=True
-
+    model_config = ConfigDict()
 
 class Practika(Base):
     __tablename__='Practika'
@@ -94,7 +93,43 @@ class Practika_validation(BaseModel):
     output_data:int
     teoriay_id:int
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict()
 
 
+Base.metadata.create_all(bind=engine)
+
+# Проверка
+def validations(objects_users,object_dict,class_validation,sessions_func):
+    try:
+        user_validation=class_validation(**object_dict)
+        print(f'Объект: {objects_users} прошел проверку')
+        sessions_func.add(objects_users)
+        print('Объект готов к подгрузке')
+        sessions_func.commit()
+        return True
+
+    except Exception as e:
+        sessions_func.rollback()
+        return False
+
+    finally:
+        sessions_func.close()
+
+
+oleg=Users(login='lox',password='lox123',email='lox123@mail.ru',age=12,groups='Ученик')
+oleg_dict={
+    "id": 0,
+    "login": oleg.login,
+    "password": oleg.password,
+    "email": oleg.email,
+    "age": oleg.age,
+    "groups": oleg.groups,
+}
+
+
+olegprogress1=Progress(nomer_lesson=1, users_id=1)
+olegprogress1_dict={
+    'id':0,
+    "nomer_lesson":1,
+    'users_id':1
+}
